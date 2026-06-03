@@ -1,0 +1,6 @@
+build/
+
+data/esquemas/
+data/espacios/
+
+*.class

@@ -1,0 +1,256 @@
+Documentacion Tecnica
+Motor BD con Árboles AVL Autobalanceados
+Ciencias de la Computación I - Grupo 020-83 - 2026-I
+
+Autores: Anyelo Esteban Casas Zapata,          Diego Alejandro Yanez Zabala,
+         Wilfer Arbey Herrera Garzon
+Docente: Ing. Simar Enrique Herrera Jimenez
+
+
+1. DISEÑO ARQUITECTONICO
+
+El sistema esta organizado en capas. Cada modulo tiene una responsabilidad
+unica y se comunica mediante interfaces.
+
+  CLI (REPL) y GUI (Swing) son las vistas. Llaman a Motor.
+  Motor es el controlador: parsea comandos y coordina los modulos.
+  GestorEspacios administra los espacios activos en memoria.
+  Catalogo guarda la definicion (esquema) de cada espacio.
+  ArbolAVL es el indice generico que indexa por clave primaria.
+  GestorPersistencia guarda y carga archivos JSON del disco.
+  ResultadoComando encapsula la respuesta: OK, FILAS, ERROR o SALIR.
+
+Modulos del codigo fuente:
+
+  motor.arbol/          ArbolAVL.java, NodoAVL.java, IIndiceArbol.java
+                        Implementacion propia del AVL con rotaciones LL/LR/RR/RL
+
+  motor.almacenamiento/ Espacio.java, GestorEspacios.java, Registro.java, IEspacio.java
+                        Cada espacio tiene un AVL interno. Registro es un mapa campo-valor.
+
+  motor.catalogo/       Catalogo.java, Esquema.java, Campo.java, TipoDato.java
+                        Define la estructura de los espacios (nombre, campos, tipos, PK).
+
+  motor.persistencia/   GestorPersistencia.java, IPersistencia.java
+                        Persiste en JSON. Escritura atomica con archivo temporal .tmp
+
+  motor.parser/         Motor.java, IMotor.java, ResultadoComando.java
+                        Controlador principal. Recibe texto, parsea, ejecuta, devuelve resultado.
+
+  cli/                  REPL.java
+                        Consola interactiva, lee comandos del teclado o ejecuta scripts .sql
+
+  gui/                  DatabaseManagerGUI.java, SpacePanel, RecordPanel, SearchPanel,
+                        TreePanel, ConsolePanel, HelpPanel, GuiContext, FieldInfo
+                        Interfaz grafica con 6 pestanas usando Swing. Arbol visual con Graphics2D.
+
+  test/                 TestMotor.java, TestBenchmark.java
+                        Suite de 39 pruebas. Benchmark que mide tiempos reales.
+
+
+2. COMANDOS SOPORTADOS
+
+DDL (definicion):
+
+  CREATE SPACE nombre (campo1 TIPO PK, campo2 TIPO, ...)
+      Crea espacio con esquema fijo. Tipos: ENTERO, TEXTO, REAL, BOOLEAN.
+      Si no hay PK explicita, el primer campo la toma.
+
+  CREATE SPACE nombre
+      Crea espacio libre (sin campos fijos, no relacional). PK = id.
+
+  DROP SPACE nombre
+      Elimina espacio, registros y archivos del disco.
+
+  SHOW SPACES
+      Lista espacios con cantidad de registros y altura del AVL.
+
+  DESC nombre
+      Muestra definicion del espacio: campos, tipos, PK, altura, cantidad.
+
+DML (manipulacion):
+
+  INSERT INTO nombre VALUES (v1, v2, ...)
+  INSERT INTO nombre (c1, c2, ...) VALUES (v1, v2, ...)
+      Inserta un registro. La segunda forma es obligatoria en espacios libres.
+
+  SELECT * FROM nombre
+  SELECT * FROM nombre WHERE campo op valor
+  SELECT * FROM nombre WHERE campo BETWEEN v1 AND v2
+      Operadores: =, !=, <>, <, <=, >, >=
+
+  UPDATE nombre SET campo=valor, ... WHERE campo op valor
+      Actualiza registros. No se puede modificar la clave primaria.
+
+  DELETE FROM nombre WHERE campo op valor
+  DELETE FROM nombre ALL
+      Elimina registros por condicion o todos.
+
+  TREE nombre        Muestra el arbol AVL en texto
+  SAVE nombre        Guarda un espacio en disco
+  SAVE ALL           Guarda todos los espacios
+  EXIT / QUIT        Sale del REPL
+
+
+3. DISEÑO DEL ARBOL AVL
+
+El AVL es un arbol binario de busqueda autobalanceado. Su invariante es:
+  |altura(izquierdo) - altura(derecho)| <= 1  para todo nodo.
+
+Factor de balance: fb = altura(izq) - altura(der). Debe estar en [-1, 0, 1].
+
+Cuando un nodo sale de balance, se aplica una de 4 rotaciones:
+
+  LL: fb > 1 y fb(izq) >= 0. Rotacion simple derecha.
+  LR: fb > 1 y fb(izq) < 0. Rotacion izquierda sobre hijo, luego derecha.
+  RR: fb < -1 y fb(der) <= 0. Rotacion simple izquierda.
+  RL: fb < -1 y fb(der) > 0. Rotacion derecha sobre hijo, luego izquierda.
+
+Cada rotacion es O(1): modifica 3 referencias y recalcula 2 alturas.
+
+La altura maxima de un AVL con n nodos: h <= 1.44 * log2(n + 2) - 0.328.
+Esto garantiza que buscar, insertar y eliminar sean O(log n).
+
+La implementacion es generica: ArbolAVL<K extends Comparable<K>, V>.
+En los espacios se usa como ArbolAVL<String, Registro>.
+
+
+4. FORMATO DE PERSISTENCIA
+
+Cada espacio genera dos archivos:
+
+  data/esquemas/<nombre>.schema
+      Una linea JSON con la definicion del espacio. Ejemplo:
+      {"nombre":"productos","libre":false,"clave":"codigo",
+       "campos":[{"n":"codigo","t":"TEXTO","pk":true},...]}
+
+  data/espacios/<nombre>.json
+      Formato JSON Lines: un registro JSON por linea. Ejemplo:
+      {"id":1,"nombre":"Ana Gomez","promedio":4.5}
+
+Escritura atomica: primero se escribe a un archivo .tmp. Si la escritura
+es exitosa, se renombra al destino final. Si el programa se cae a mitad de
+escritura, el archivo original queda intacto.
+
+Al iniciar el motor, cargarTodo() lee los .schema, crea los espacios vacios
+y repuebla el AVL insertando los registros uno a uno (O(n log n) total).
+
+
+5. ANALISIS DE COMPLEJIDAD
+
+Operacion                              Tiempo         Espacio
+Buscar por clave (AVL)                O(log n)        O(1)
+Insertar (AVL)                        O(log n)        O(1)
+Eliminar (AVL)                        O(log n)        O(1)
+Buscar por rango en PK                O(log n + k)    O(k)
+Recorrido inorden                     Theta(n)        O(n)
+Buscar por campo no indexado           O(n)            O(1)
+Actualizar por condicion               O(n)            O(1)
+Eliminar por condicion                 O(n log n)      O(1)
+Guardar a disco                        O(n)            O(1)
+Cargar desde disco                     O(n log n)      O(n)
+Obtener altura                         O(1)            O(1)
+Contar registros                       O(1)            O(1)
+
+n = cantidad de registros, k = resultados en el rango.
+
+Recurrencias formales:
+
+  Busqueda:  T(n) = T(n/2) + c  =>  Theta(log n)  (Teorema Maestro caso 2)
+  Insercion: T(n) = T(n/2) + O(1) => Theta(log n)
+  Carga:     T(n) = sum(log i) = log(n!) => Theta(n log n)  (Stirling)
+
+Paradigmas algoritmicos:
+  - Divide y venceras: busqueda, insercion y eliminacion en el AVL
+  - Fuerza bruta: busquedas por campo no indexado (recorre todos)
+
+
+6. COMPARATIVA CON OTRAS ESTRUCTURAS
+
+Estructura        Buscar     Insertar   Ordenado   Balanceado
+Arreglo ordenado  O(log n)   O(n)       Si         No (estatico)
+Lista enlazada    O(n)       O(1)       Si         N/A
+ABB simple        O(n)*      O(n)*      Si         No
+AVL               O(log n)   O(log n)   Si         Si
+Rojo-Negro        O(log n)   O(log n)   Si         Si
+HashMap           O(1)**     O(1)**     No         N/A
+
+* Peor caso: arbol degenerado. ** Caso promedio, peor caso O(n).
+
+Se eligio AVL porque:
+  1. Garantiza O(log n) en el peor caso (ABB no)
+  2. Mas simple que Rojo-Negro (menos casos de rotacion)
+  3. Permite recorrido inorden (HashMap no)
+  4. Permite busqueda por rango (HashMap no)
+  5. Balance estricto favorece lecturas sobre escrituras
+
+
+7. ATOMICIDAD
+
+Cada comando se ejecuta completo o falla sin dejar cambios parciales.
+Si ocurre un error (validacion, clave duplicada, disco), se lanza excepcion,
+se atrapa en Motor.ejecutar() y se devuelve ResultadoComando de tipo ERROR.
+
+Escritura a disco: archivo temporal .tmp, luego rename. Si el proceso
+muere durante la escritura, el archivo original queda intacto.
+
+
+8. DATASETS DE PRUEBA
+
+script_pequeno.sql: 5 estudiantes (id, nombre, promedio, semestre, activo)
+script_mediano.sql: 20 productos (codigo, nombre, precio, stock, categoria)
+script_libre.sql:    5 documentos con campos diferentes (no relacional)
+
+Ejecutar: java -cp build/classes cli.REPL --script data/script_pequeno.sql
+
+
+9. PRUEBAS
+
+TestMotor.java: 39 pruebas en 11 bloques. Cubre:
+  CREATE/DROP, INSERT, SELECT, BETWEEN, UPDATE, DELETE,
+  TREE, DESC, persistencia + reinicio, DELETE ALL.
+
+Ejecutar: java -cp build/classes test.TestMotor
+
+TestBenchmark.java: Mide tiempos reales con n = 10, 100, 500, 1000, 5000.
+Verifica que la busqueda se mantiene constante (O(log n)) y que la altura
+nunca supera 1.44 * log2(n) + 1.
+
+Ejecutar: java -cp build/classes test.TestBenchmark
+
+
+10. MAPEO CON EL PENSUM DE CIENCIAS I
+
+Unidad 1 - Algoritmos:
+  Definicion de algoritmo, paradigmas: divide y venceras (AVL), fuerza bruta.
+
+Unidad 2 - Busqueda y ordenamiento:
+  AVL mantiene orden natural. Inorden devuelve datos ordenados sin sort extra.
+
+Unidad 3 - Analisis de complejidad:
+  Cotas O, Omega, Theta. Recurrencias T(n)=T(n/2)+c. Teorema Maestro.
+  Benchmark empirico que verifica las cotas teoricas.
+
+Unidad 4 - Algoritmos recursivos:
+  Busqueda, insercion y eliminacion son recursivas. Recurrencias resueltas.
+
+Unidad 5 - Estructuras lineales:
+  Comparativa: por que no se uso arreglo ni lista enlazada (seccion 6).
+
+Unidad 6 - Arboles:
+  AVL con rotaciones LL/LR/RR/RL. Invariante |fb|<=1. Altura O(log n).
+  Recorrido inorden. Operaciones O(log n).
+
+
+11. INTERFAZ GRAFICA (EXTRA)
+
+GUI con 6 pestanas en Swing:
+  Espacios:    crear y eliminar espacios
+  Registros:   insertar, ver, actualizar y eliminar registros
+  Busquedas:   filtrar por campo, rango BETWEEN
+  Arbol AVL:   visualizacion grafica con Graphics2D
+  Consola:     terminal integrada, historial, atajos
+  Ayuda:       referencia de comandos y ejemplos
+
+Atajos: Ctrl+S guardar, Ctrl+Q salir, F5 refrescar.
+Menu: Archivo, Ver, Ayuda. Barra de estado con conteo de registros.

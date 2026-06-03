@@ -1,0 +1,88 @@
+Guia para la Defensa Presencial (8-12 minutos)
+Motor BD con Árboles AVL
+
+
+MINUTO 0-2: INTRODUCCION
+
+Abrir dos ventanas: CLI y GUI.
+
+Explicar rapido:
+  - Motor de BD en Java, ~4000 lineas, 23 clases
+  - Arquitectura en capas: parser, almacenamiento, indice AVL, persistencia
+  - Dos interfaces: consola y GUI (6 pestanas)
+  - Sin librerias externas, AVL hecho desde cero
+
+
+MINUTO 2-5: DEMO EN CONSOLA
+
+  java -cp build/classes cli.REPL
+
+  SHOW SPACES
+  CREATE SPACE demo (id ENTERO PK, nombre TEXTO, nota REAL)
+  INSERT INTO demo VALUES (1, 'Juan', 4.2)
+  INSERT INTO demo VALUES (2, 'Maria', 3.8)
+  INSERT INTO demo VALUES (3, 'Pedro', 4.9)
+  SELECT * FROM demo
+  SELECT * FROM demo WHERE nota >= 4.0
+  SELECT * FROM demo WHERE id BETWEEN 1 AND 2
+  UPDATE demo SET nota=5.0 WHERE id = 2
+  DELETE FROM demo WHERE id = 3
+  SELECT * FROM demo
+
+  TREE demo
+  Explicar: [clave] h=altura fb=factor_balance. fb siempre en [-1,1] = balanceado.
+
+  SAVE ALL
+  EXIT
+
+  Volver a abrir para mostrar que los datos persisten:
+  java -cp build/classes cli.REPL
+  SELECT * FROM demo
+
+
+MINUTO 5-8: DEMO GUI
+
+  java -cp build/classes gui.DatabaseManagerGUI
+
+  Pestana Espacios: crear "productos" con campos (codigo TEXTO PK, nombre, precio, stock)
+
+  Pestana Registros: insertar 2-3 productos, seleccionar fila, actualizar precio
+
+  Pestana Busquedas: buscar por precio >= 1000, rango BETWEEN
+
+  Pestana Arbol AVL (importante): seleccionar espacio, mostrar arbol.
+    Se dibujan los nodos, raiz en azul. Panel derecho muestra inorder y estadisticas.
+    Buscar una clave (se resalta en amarillo).
+    Explicar: el arbol se autobalancea, garantiza O(log n).
+
+  Pestana Consola: ejecutar TREE productos. Mostrar que GUI y CLI usan el mismo motor.
+
+
+MINUTO 8-10: ESPACIO LIBRE (NO RELACIONAL)
+
+  CREATE SPACE notas
+  INSERT INTO notas (id, materia, calificacion) VALUES ('n1', 'Fisica', 3.5)
+  INSERT INTO notas (id, tema, autor) VALUES ('n2', 'AVL', 'Adelson')
+  SELECT * FROM notas
+  Cada registro tiene campos diferentes. Esto demuestra el enfoque no relacional.
+
+
+MINUTO 10-12: PRUEBAS, BENCHMARK Y CIERRE
+
+  java -cp build/classes test.TestMotor
+  Mostrar que las 39 pruebas pasan [ OK ]
+
+  java -cp build/classes test.TestBenchmark
+  Mostrar que el tiempo de busqueda se mantiene constante aunque n crezca 500x.
+  La altura nunca supera 1.44 * log2(n) + 1.
+
+Puntos clave para mencionar:
+  "El AVL es implementacion propia, sin usar TreeMap ni librerias externas"
+  "Las 4 rotaciones mantienen el factor de balance en [-1, 1]"
+  "O(log n) garantizado en el peor caso para busqueda, insercion y eliminacion"
+  "Teorema Maestro: T(n) = T(n/2) + c = Theta(log n)"
+  "Carga desde disco: T(n) = sum(log i) = Theta(n log n) por Stirling"
+  "Persistencia atomica con archivo temporal .tmp"
+  "GUI y CLI comparten el mismo Motor (sin logica duplicada)"
+  "Soporta esquemas fijos (relacional) y libres (no relacional)"
+  "Benchmark verifica O(log n) empiricamente"

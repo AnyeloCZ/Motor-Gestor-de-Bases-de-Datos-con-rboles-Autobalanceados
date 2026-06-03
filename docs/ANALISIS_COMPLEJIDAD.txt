@@ -1,0 +1,140 @@
+Analisis Formal de Complejidad
+Motor BD con Árbol AVL
+Ciencias de la Computación I - Grupo 020-83
+
+
+1. BUSQUEDA EN AVL
+
+Algoritmo: divide y venceras. En cada paso descarta la mitad del arbol.
+
+  T(n) = T(n/2) + c     donde c = costo de una comparacion
+
+Teorema Maestro: a=1, b=2, f(n)=c=O(n^0), k=0
+  log_b(a) = log_2(1) = 0
+  k = 0 = log_b(a) => caso 2
+  T(n) = Theta(n^0 * log n) = Theta(log n)
+
+Cotas: O(log n) superior, Omega(log n) inferior, Theta(log n) ajustada.
+
+
+2. INSERCION EN AVL
+
+Dos fases: busqueda binaria O(log n) + balanceo hacia arriba O(log n).
+Cada rotacion es O(1) porque solo ajusta 3 referencias y 2 alturas.
+
+  T(n) = T(n/2) + O(1)
+  Solucion por Teorema Maestro: Theta(log n)
+
+
+3. ELIMINACION EN AVL
+
+Peor caso: eliminar raiz con dos hijos. Se busca sucesor inorden O(log n),
+se copia, se elimina sucesor O(log n), se balancea O(log n).
+
+  T(n) = O(log n)
+
+
+4. CARGA DESDE DISCO
+
+Al cargar n registros, cada insercion i toma O(log i) en el AVL:
+
+  T(n) = sum_{i=1}^{n} log(i) = log(1*2*...*n) = log(n!)
+
+Por la aproximacion de Stirling: log(n!) = Theta(n log n)
+
+  T(n) = Theta(n log n)
+
+
+5. BUSQUEDA POR CAMPO NO INDEXADO
+
+Recorre todos los registros (fuerza bruta). Sin usar el AVL:
+
+  T(n) = n * O(1) = O(n)
+  Cota inferior: Omega(n)
+
+
+6. BUSQUEDA POR RANGO EN PK
+
+El AVL poda ramas fuera del intervalo:
+
+  T(n) = O(k + log n)    donde k = elementos en el rango
+
+Se visitan O(log n) nodos para encontrar los extremos y luego k nodos.
+
+
+7. RECORRIDO INORDEN
+
+Visita cada nodo exactamente una vez:
+
+  T(n) = Theta(n)
+
+
+8. TABLA COMPLETA DE COMPLEJIDAD
+
+Operacion                     Tiempo         Espacio    Paradigma
+Buscar por clave              O(log n)       O(1)       Divide y venceras
+Insertar                      O(log n)       O(1)       Divide y venceras
+Eliminar                      O(log n)       O(1)       Divide y venceras
+Rango en PK                   O(log n + k)   O(k)       Divide y venceras
+Inorden                       Theta(n)       O(n)       Recorrido completo
+Buscar campo no indexado       O(n)           O(1)       Fuerza bruta
+Actualizar por condicion       O(n)           O(1)       Fuerza bruta
+Eliminar por condicion         O(n log n)     O(1)       Fuerza bruta
+Guardar disco                  O(n)           O(1)       Secuencial
+Cargar disco                   O(n log n)     O(n)       Insercion repetida
+Altura AVL                     O(1)           O(1)       Dato precalculado
+Contar registros               O(1)           O(1)       Contador interno
+
+
+9. COTA DE ALTURA DEL AVL
+
+La altura h de un AVL con n nodos satisface:
+  n >= F_{h+2} - 1    (F = numeros de Fibonacci)
+
+Cota superior: h <= 1.44 * log2(n + 2) - 0.328
+
+Ejemplos con datos reales del benchmark:
+  n=10:    h=4,   cota max=5.8    (cumple)
+  n=100:   h=7,   cota max=10.6   (cumple)
+  n=500:   h=10,  cota max=13.9   (cumple)
+  n=1000:  h=11,  cota max=15.4   (cumple)
+  n=5000:  h=14,  cota max=18.7   (cumple)
+
+
+10. JUSTIFICACION DEL AVL
+
+Comparado con otras estructuras del curso:
+
+  Arreglo ordenado: busqueda O(log n) pero insertar es O(n) por desplazamiento.
+    No sirve para una BD con inserciones frecuentes.
+
+  Lista enlazada: insertar O(1) pero buscar es O(n). Demasiado lento.
+
+  ABB sin balance: si los datos llegan ordenados (ids 1,2,3...) degenera a
+    una lista y todo se vuelve O(n). En una BD los ids suelen ser secuenciales.
+
+  Rojo-Negro: tambien O(log n) pero mas complejo de implementar (manejo de
+    colores, mas casos de rotacion). Para este proyecto AVL es suficiente.
+
+  HashMap: O(1) en promedio pero no mantiene orden, no soporta rangos
+    (BETWEEN) y el peor caso es O(n) por colisiones.
+
+El AVL es la mejor opcion para este proyecto porque:
+  - Garantiza O(log n) en el peor caso
+  - Es mas simple que Rojo-Negro
+  - El orden natural permite BETWEEN y listados ordenados sin costo extra
+  - La implementacion es propia (sin usar TreeMap ni librerias)
+
+
+11. PARADIGMAS ALGORITMICOS USADOS
+
+Divide y venceras:
+  Busqueda, insercion y eliminacion en el AVL. Cada llamada recursiva
+  reduce el problema a la mitad del arbol.
+
+Fuerza bruta:
+  Busquedas por campo no indexado. Se recorre toda la coleccion elemento
+  por elemento. Simple pero O(n).
+
+Escritura atomica:
+  Archivo temporal + rename al final. Previene corrupcion de datos.

@@ -1,0 +1,22 @@
+Requisitos del proyecto Motor BD AVL
+
+1. Java Development Kit
+   - JDK 17 o superior (recomendado JDK 21 LTS)
+   - Verificar: java -version && javac -version
+
+2. Sistema operativo
+   - Windows 10/11, Linux o macOS
+   - Terminal: PowerShell, CMD, Bash o similar
+
+3. NetBeans (opcional)
+   - NetBeans 17 o superior
+   - El proyecto incluye carpeta nbproject/ para abrirlo directamente
+
+4. Sin dependencias externas
+   - Solo se usa Java SE (java.base, java.desktop para Swing)
+   - No requiere Maven, Gradle ni librerias de terceros
+   - El arbol AVL esta implementado desde cero (src/motor/arbol/)
+
+5. Codificacion
+   - UTF-8 para compilar (el codigo contiene acentos en comentarios)
+   - Comando: javac -encoding UTF-8 ...

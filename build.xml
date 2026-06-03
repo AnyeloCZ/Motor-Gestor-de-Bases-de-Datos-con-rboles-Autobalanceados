@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="MotorBD-AVL" default="default" basedir=".">
+
+    <description>Motor/Gestor de Bases de Datos con Arboles AVL Autobalanceados</description>
+
+    <import file="nbproject/build-impl.xml"/>
+
+    <!-- Sobreescribe run-test-with-main para que no dependa de test roots -->
+    <target name="run-test-with-main" depends="init,compile">
+        <fail unless="run.class">Debe seleccionar un archivo en el IDE</fail>
+        <java classname="${run.class}" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="build/classes"/>
+            </classpath>
+        </java>
+    </target>
+
+    <target name="debug-test-with-main" depends="init,compile">
+        <fail unless="run.class">Debe seleccionar un archivo en el IDE</fail>
+        <java classname="${run.class}" fork="true" failonerror="true">
+            <jvmarg value="-agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}"/>
+            <classpath>
+                <pathelement location="build/classes"/>
+            </classpath>
+        </java>
+    </target>
+
+    <!-- Ejecutar CLI interactiva -->
+    <target name="run-cli" depends="compile">
+        <java classname="cli.REPL" fork="true">
+            <classpath>
+                <pathelement location="build/classes"/>
+            </classpath>
+        </java>
+    </target>
+
+    <!-- Ejecutar script SQL mediano -->
+    <target name="run-script" depends="compile">
+        <java classname="cli.REPL" fork="true">
+            <classpath>
+                <pathelement location="build/classes"/>
+            </classpath>
+            <arg value="--script"/>
+            <arg value="data/script_mediano.sql"/>
+        </java>
+    </target>
+
+    <!-- Limpiar compilados -->
+    <target name="clean-all" depends="clean">
+        <delete dir="dist"/>
+        <delete dir="data_test"/>
+        <delete dir="data_test2"/>
+    </target>
+
+</project>
